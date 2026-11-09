@@ -1,0 +1,55 @@
+<?xml version="1.0"?>
+<Container version="2">
+  <Name>x402-facilitator-syd</Name>
+  <Repository>ghcr.io/x402-rs/x402-facilitator:latest</Repository>
+  <Registry>https://ghcr.io</Registry>
+  <Network>bridge</Network>
+  <MyIP/>
+  <MyMAC/>
+  <Shell>sh</Shell>
+  <Privileged>false</Privileged>
+  <Support>https://github.com/x402-rs/x402-rs/issues</Support>
+  <Project>https://github.com/x402-rs/x402-rs</Project>
+  <ReadMe/>
+  <Overview>Self-hosted x402-rs facilitator (Phase 1, unraid-syd leg of the active/active pool).&#13;
+Image pinned by OCI index digest (v2.0.2, revision 0b14f39).&#13;
+Serves Base Sepolia (eip155:84532) and Base mainnet (eip155:8453).&#13;
+Config mounted read-only at /app/config.json; secret via /app/.env (dotenvy), NOT visible in docker inspect.&#13;
+Runs as root for the Tailscale hook; the Rust binary drops nothing (image default user is root).&#13;
+Tailscale hostname x402-facilitator-syd, joined to pygmy-bramble; ingress via Caddy on caddy-linode.&#13;
+Auth key is a placeholder - Gary sets the real key via the Unraid UI.&#13;
+EVM_PRIVATE_KEY must be placed in the mounted .env before start; container fails closed if unset.&#13;
+</Overview>
+  <Category>Network:Web:</Category>
+  <WebUI>http://[noserve]:8080/health</WebUI>
+  <TemplateURL/>
+  <Icon>https://raw.githubusercontent.com/bitcryptic-gw/bitcryptic-blog/main/bc-icon.png</Icon>
+  <ExtraParams/>
+  <PostArgs/>
+  <CPUset/>
+  <DateInstalled>1793876957</DateInstalled>
+  <DonateText/>
+  <DonateLink/>
+  <Requires/>
+  <Config Name="Facilitator Port" Target="PORT" Default="8080" Mode="" Description="Internal HTTP port" Type="Variable" Display="always" Required="true" Mask="false">8080</Config>
+  <Config Name="Config File" Target="/app/config.json" Default="/mnt/cache/appdata/x402-facilitator-syd/config.json" Mode="ro" Description="x402-rs facilitator config (chains, schemes, RPC)" Type="Path" Display="always" Required="true" Mask="false">/mnt/cache/appdata/x402-facilitator-syd/config.json</Config>
+  <Config Name="Env File (secret)" Target="/app/.env" Default="/mnt/cache/appdata/x402-facilitator-syd/.env" Mode="ro" Description="Secret env file loaded by dotenvy - holds EVM_PRIVATE_KEY. Must be chmod 600 on the host." Type="Path" Display="always" Required="true" Mask="false">/mnt/cache/appdata/x402-facilitator-syd/.env</Config>
+  <Config Name="Data Directory" Target="/app/data" Default="/mnt/cache/appdata/x402-facilitator-syd/data" Mode="rw" Description="Persistent host-mounted directory for Tailscale state (CA_TS_FALLBACK_DIR=/app/data). Without this mount the state is ephemeral inside the container, so a restart forces a fresh login with a single-use auth key that is already consumed." Type="Path" Display="always" Required="true" Mask="false">/mnt/cache/appdata/x402-facilitator-syd/data</Config>
+  <Config Name="Tailscale Fallback State Directory" Target="CA_TS_FALLBACK_DIR" Default="/app/data" Mode="" Description="Persistent container directory for tailscale state (falls back when Tailscale State Directory is blank)" Type="Variable" Display="advanced" Required="false" Mask="false">/app/data</Config>
+  <Config Name="ORG_ENTRYPOINT" Target="ORG_ENTRYPOINT" Default="/usr/local/bin/x402-facilitator" Mode="" Description="Original Docker entrypoint" Type="Variable" Display="advanced-hide" Required="false" Mask="false">/usr/local/bin/x402-facilitator</Config>
+  <Config Name="ORG_CMD" Target="ORG_CMD" Default="" Mode="" Description="Original Docker command (none - the binary is the entrypoint)" Type="Variable" Display="advanced-hide" Required="false" Mask="false"/>
+  <TailscaleEnabled>true</TailscaleEnabled>
+  <TailscaleIsExitNode>false</TailscaleIsExitNode>
+  <TailscaleHostname>x402-facilitator-syd</TailscaleHostname>
+  <TailscaleExitNodeIP/>
+  <TailscaleSSH>false</TailscaleSSH>
+  <TailscaleUserspaceNetworking>false</TailscaleUserspaceNetworking>
+  <TailscaleLANAccess>false</TailscaleLANAccess>
+  <TailscaleServe>no</TailscaleServe>
+  <TailscaleWebUI>http://[noserve]/health</TailscaleWebUI>
+  <TailscaleDParams/>
+  <TailscaleParams/>
+  <TailscaleRoutes/>
+  <TailscaleAcceptRoutes>false</TailscaleAcceptRoutes>
+  <TailscaleStateDir/>
+</Container>
