@@ -16,7 +16,7 @@ cannot make the signer spend gas settling a validly signed authorization.
 Image, pinned by digest:
 
 ```
-bitcryptic/mdf-facilitator@sha256:b7df3f7244fd0a2352dbe982d5702d2f2e79845943d661266b83dd7893fa2980   (0.1.1)
+bitcryptic/mdf-facilitator@sha256:626252669440b04a1787370eb98ce4733d8a86c55a114d7d6b586b72ac3c5758   (0.1.2)
 ```
 
 ## Why the containers are created in the Unraid UI
@@ -67,20 +67,37 @@ v2 legs.
 
 ## 2. Tailscale integration
 
-The template ships the fields Unraid's hook reads, modelled on the running v1
-`x402-facilitator-public` / `-syd` containers:
+The template ships the fields Unraid's Tailscale integration reads. They are
+**first-class template elements** (`<TailscaleStateDir>` et al.), not environment
+variables: Unraid's `dynamix.docker.manager` turns those elements into the
+`TAILSCALE_*` environment itself at container-creation time, and it also adds
+the hook mount, `--entrypoint=/opt/unraid/tailscale`, `/dev/net/tun` and
+`NET_ADMIN`. Putting the values in an `<Environment>` block does not reach the
+hook — that is what caused the first launch to fail.
 
-| field | value | why |
+| element | value | why |
 |---|---|---|
-| entrypoint | `/opt/unraid/tailscale` (ExtraParams) | the hook re-execs the real command |
-| `ORG_ENTRYPOINT` / `ORG_CMD` | `node` / `/app/src/index.ts` | what the hook execs after the tailnet is up |
-| `TAILSCALE_HOSTNAME` | `mdf-facilitator-syd` / `-public` | the node name proposed for the leg |
-| `TAILSCALE_STATE_DIR` | `/app/data/.tailscale_state` | state survives restarts, on the appdata mount |
-| `TAILSCALE_USERSPACE_NETWORKING` | `false` | kernel/TUN mode, so inbound `:8080` works |
-| `--device=/dev/net/tun`, `--cap-add=NET_ADMIN` | ExtraParams | required by TUN mode |
-| `TAILSCALE_ALLOW_LAN_ACCESS`, `TAILSCALE_USE_SSH` | `false` | no LAN reach, no SSH |
-| `TAILSCALE_PARAMS` | empty | the single-use auth key goes here on first start only |
-| `--user 0:0` | ExtraParams | the hook requires root; the service drops to 1000 itself |
+| `TailscaleEnabled` | `true` | turns the integration on |
+| `TailscaleHostname` | `mdf-facilitator-syd` / `-public` | the node name |
+| **`TailscaleStateDir`** | **`/app/data/.tailscale_state`** | **the fix:** without it the hook cannot find a persistent directory and aborts |
+| `TailscaleUserspaceNetworking` | `false` | kernel/TUN mode, so inbound `:8080` works |
+| `TailscaleLANAccess` | `false` | no LAN reach |
+| `TailscaleSSH` | `false` | no SSH |
+| `TailscaleParams` | empty | the single-use auth key goes here on first start only |
+| `--user 0:0` (ExtraParams) | — | the hook requires root; the service drops to 1000 itself |
+
+The image's `ENTRYPOINT` is `node /app/src/index.ts`; the integration copies that
+into `ORG_ENTRYPOINT`, which is what the hook re-execs once the tailnet is up.
+
+### State directory and ownership
+
+`TailscaleStateDir` points **inside the existing `/app/data` rw mount** — no
+extra volume. `tailscaled` runs as root under the hook and creates
+`/app/data/.tailscale_state` (mode 0700, root-owned); `/app/data` itself is
+`1000:1000` mode 755, so root can create the directory there. The facilitator
+process never reads it: it drops to uid 1000 before doing anything and only
+touches `/run/secrets` and its own socket. The signer key stays `1000:1000 600`
+under `/run/secrets`, unaffected.
 
 ### First start
 
@@ -89,16 +106,16 @@ The template ships the fields Unraid's hook reads, modelled on the running v1
    the container config, which is why they do not appear in the template or in
    `docker inspect`. Tagged nodes have **key expiry disabled by default**, so
    there is nothing to disable in the admin console.
-2. Paste the key into `TAILSCALE_PARAMS` as `--authkey=tskey-auth-…` (the hook
-   passes that string straight to `tailscale up`; there is no separate auth-key
-   variable in this hook version).
+2. Paste it into the template's **`TailscaleParams`** element as
+   `--authkey=tskey-auth-…` (the hook passes that string straight to
+   `tailscale up`; there is no separate auth-key element in this hook version).
 3. Start the container from the UI.
 4. Confirm the node exists: `tailscale status | grep mdf-facilitator-syd`,
    or look for it in the admin console. Confirm the state was written:
    `ls /mnt/cache/appdata/mdf-facilitator-syd/data/.tailscale_state`.
 5. Confirm the service: `curl -s http://mdf-facilitator-syd:8080/supported`
-   from any tailnet node.
-6. **Clear `TAILSCALE_PARAMS`** in the template and apply/restart.
+   from any tailnet node, and that `/health` shows a balance reading.
+6. **Clear `TailscaleParams`** in the template and apply/restart.
 7. Confirm it rejoins from saved state (the container log shows
    `Starting tailscale` / `Connected`, and the node name is unchanged).
 
@@ -112,6 +129,22 @@ docker inspect mdf-facilitator-syd --format '{{json .Config.Env}}' | grep -i aut
 
 The template's `TAILSCALE_PARAMS` must be empty too. Do the same check on the
 `my-mdf-facilitator-*.xml` file if the key was ever saved there.
+
+### Troubleshooting
+
+**`ERROR: Couldn't detect persistent Docker directory for .tailscale_state!`**
+The hook could not find a state directory. It checks `TAILSCALE_STATE_DIR` first
+then several fallbacks, and the container has no `/config` or `/data`; the
+template must therefore set the `TailscaleStateDir` element to
+`/app/data/.tailscale_state`. If the field is blank in the UI, the integration
+does not export the variable at all and the hook aborts before `tailscale up`.
+Fill the field (Tailscale section → advanced), apply, and start again.
+
+**The container is "running" but nothing answers on the node name.** Check the
+container log: if it shows `Executing Unraid Docker Hook` then stops without
+`Starting container...`, the hook exec'd an empty `ORG_ENTRYPOINT`. That means
+the image had no `ENTRYPOINT` (fixed in 0.1.2) or the template lost the
+`TailscaleEnabled` element.
 
 ## 3. Verify (read-only)
 

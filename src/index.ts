@@ -19,7 +19,7 @@ import { createHandler } from "./http.ts";
 import { dropPrivileges } from "./privileges.ts";
 import { createLogger } from "./log.ts";
 
-const VERSION = "0.1.1";
+const VERSION = "0.1.2";
 
 /**
  * The Unraid Tailscale hook runs as root (it installs packages, starts

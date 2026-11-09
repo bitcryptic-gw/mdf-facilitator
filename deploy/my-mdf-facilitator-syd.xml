@@ -10,14 +10,19 @@
   `docker run`, so `my-mdf-facilitator-syd.xml` is generated and
   `net.unraid.docker.managed=dockerman` is set. Pinned by digest.
 
-  First start: paste a single-use tailnet auth key into TAILSCALE_PARAMS in the
-  form "authkey=tskey-auth-..." (with a leading double dash, as the tailscale
-  CLI expects). After the node appears, clear that field and restart; the node
-  rejoins from the state saved in /app/data/.tailscale_state.
+  The Tailscale settings are first-class template elements (TailscaleEnabled,
+  TailscaleHostname, TailscaleStateDir, TailscaleUserspaceNetworking), not
+  environment variables: the integration reads the elements and turns them into
+  the TAILSCALE_* environment itself.
+
+  First start: paste a single-use tailnet auth key (minted with tag:misc-services)
+  into TailscaleParams as "authkey=tskey-auth-..." preceded by two dashes, as the
+  tailscale CLI expects. After the node appears, clear that field and restart;
+  the node rejoins from the state saved in /app/data/.tailscale_state.
 -->
 <Container version="2">
   <Name>mdf-facilitator-syd</Name>
-  <Repository>bitcryptic/mdf-facilitator@sha256:b7df3f7244fd0a2352dbe982d5702d2f2e79845943d661266b83dd7893fa2980</Repository>
+  <Repository>bitcryptic/mdf-facilitator@sha256:626252669440b04a1787370eb98ce4733d8a86c55a114d7d6b586b72ac3c5758</Repository>
   <Registry>https://registry.hub.docker.com/</Registry>
   <Network>bridge</Network>
   <MyIP/>
@@ -30,7 +35,7 @@
   <WebUI>http://mdf-facilitator-syd:8080/health</WebUI>
   <TemplateURL/>
   <Icon>https://raw.githubusercontent.com/bitcryptic-gw/bitcryptic-blog/main/bc-icon.png</Icon>
-  <ExtraParams>--restart=unless-stopped --user 0:0 --device=/dev/net/tun --cap-add=NET_ADMIN --entrypoint=/opt/unraid/tailscale</ExtraParams>
+  <ExtraParams>--restart=unless-stopped --user 0:0</ExtraParams>
   <PostArgs/>
   <CPUset/>
   <DateInstalled/>
@@ -40,6 +45,14 @@
   <Networking>
     <Mode>bridge</Mode>
   </Networking>
+  <TailscaleEnabled>true</TailscaleEnabled>
+  <TailscaleHostname>mdf-facilitator-syd</TailscaleHostname>
+  <TailscaleStateDir>/app/data/.tailscale_state</TailscaleStateDir>
+  <TailscaleUserspaceNetworking>false</TailscaleUserspaceNetworking>
+  <TailscaleLANAccess>false</TailscaleLANAccess>
+  <TailscaleSSH>false</TailscaleSSH>
+  <TailscaleWebUI>http://mdf-facilitator-syd:8080/health</TailscaleWebUI>
+  <TailscaleParams></TailscaleParams>
   <Data>
     <Volume>
       <HostDir>/mnt/cache/appdata/mdf-facilitator-syd/secrets</HostDir>
@@ -51,87 +64,82 @@
       <ContainerDir>/app/data</ContainerDir>
       <Mode>rw</Mode>
     </Volume>
-    <Volume>
-      <HostDir>/usr/local/share/docker/tailscale_container_hook</HostDir>
-      <ContainerDir>/opt/unraid/tailscale</ContainerDir>
-      <Mode>ro</Mode>
-    </Volume>
   </Data>
-  <Environment>
-    <Variable>
-      <Value>8080</Value>
-      <Name>PORT</Name>
-      <Mode/>
-    </Variable>
-    <Variable>
-      <Value>https://mainnet.base.org</Value>
-      <Name>BASE_RPC_URL</Name>
-      <Mode/>
-    </Variable>
-    <Variable>
-      <Value>https://sepolia.base.org</Value>
-      <Name>BASE_SEPOLIA_RPC_URL</Name>
-      <Mode/>
-    </Variable>
-    <Variable>
-      <Value>500000000000000</Value>
-      <Name>GAS_THRESHOLD_WEI</Name>
-      <Mode/>
-    </Variable>
-    <Variable>
-      <Value>300000</Value>
-      <Name>BALANCE_POLL_MS</Name>
-      <Mode/>
-    </Variable>
-    <Variable>
-      <Value>1000</Value>
-      <Name>APP_UID</Name>
-      <Mode/>
-    </Variable>
-    <Variable>
-      <Value>1000</Value>
-      <Name>APP_GID</Name>
-      <Mode/>
-    </Variable>
-    <Variable>
-      <Value>node</Value>
-      <Name>ORG_ENTRYPOINT</Name>
-      <Mode/>
-    </Variable>
-    <Variable>
-      <Value>/app/src/index.ts</Value>
-      <Name>ORG_CMD</Name>
-      <Mode/>
-    </Variable>
-    <Variable>
-      <Value>mdf-facilitator-syd</Value>
-      <Name>TAILSCALE_HOSTNAME</Name>
-      <Mode/>
-    </Variable>
-    <Variable>
-      <Value>/app/data/.tailscale_state</Value>
-      <Name>TAILSCALE_STATE_DIR</Name>
-      <Mode/>
-    </Variable>
-    <Variable>
-      <Value>false</Value>
-      <Name>TAILSCALE_USERSPACE_NETWORKING</Name>
-      <Mode/>
-    </Variable>
-    <Variable>
-      <Value>false</Value>
-      <Name>TAILSCALE_ALLOW_LAN_ACCESS</Name>
-      <Mode/>
-    </Variable>
-    <Variable>
-      <Value>false</Value>
-      <Name>TAILSCALE_USE_SSH</Name>
-      <Mode/>
-    </Variable>
-    <Variable>
-      <Value></Value>
-      <Name>TAILSCALE_PARAMS</Name>
-      <Mode/>
-    </Variable>
-  </Environment>
+  <Config>
+    <Name>WebUI Port</Name>
+    <Target>PORT</Target>
+    <Default>8080</Default>
+    <Mode/>
+    <Description>Listen port inside the container. Not published to the host.</Description>
+    <Type>Variable</Type>
+    <Display>always</Display>
+    <Required>false</Required>
+    <Mask>false</Mask>
+  </Config>
+  <Config>
+    <Name>Base mainnet RPC</Name>
+    <Target>BASE_RPC_URL</Target>
+    <Default>https://mainnet.base.org</Default>
+    <Mode/>
+    <Description>JSON-RPC for eip155:8453.</Description>
+    <Type>Variable</Type>
+    <Display>always</Display>
+    <Required>false</Required>
+    <Mask>false</Mask>
+  </Config>
+  <Config>
+    <Name>Base Sepolia RPC</Name>
+    <Target>BASE_SEPOLIA_RPC_URL</Target>
+    <Default>https://sepolia.base.org</Default>
+    <Mode/>
+    <Description>JSON-RPC for eip155:84532.</Description>
+    <Type>Variable</Type>
+    <Display>always</Display>
+    <Required>false</Required>
+    <Mask>false</Mask>
+  </Config>
+  <Config>
+    <Name>Low-gas threshold (wei)</Name>
+    <Target>GAS_THRESHOLD_WEI</Target>
+    <Default>500000000000000</Default>
+    <Mode/>
+    <Description>/health reports degraded below this balance. Default 0.0005 ETH.</Description>
+    <Type>Variable</Type>
+    <Display>advanced</Display>
+    <Required>false</Required>
+    <Mask>false</Mask>
+  </Config>
+  <Config>
+    <Name>Balance poll interval (ms)</Name>
+    <Target>BALANCE_POLL_MS</Target>
+    <Default>300000</Default>
+    <Mode/>
+    <Description>Background poll for /health balances. Never an RPC call per request.</Description>
+    <Type>Variable</Type>
+    <Display>advanced</Display>
+    <Required>false</Required>
+    <Mask>false</Mask>
+  </Config>
+  <Config>
+    <Name>App uid</Name>
+    <Target>APP_UID</Target>
+    <Default>1000</Default>
+    <Mode/>
+    <Description>uid the service drops to after the Tailscale hook starts it as root. Must own the signer key file.</Description>
+    <Type>Variable</Type>
+    <Display>advanced</Display>
+    <Required>false</Required>
+    <Mask>false</Mask>
+  </Config>
+  <Config>
+    <Name>App gid</Name>
+    <Target>APP_GID</Target>
+    <Default>1000</Default>
+    <Mode/>
+    <Description>gid the service drops to after the Tailscale hook starts it as root.</Description>
+    <Type>Variable</Type>
+    <Display>advanced</Display>
+    <Required>false</Required>
+    <Mask>false</Mask>
+  </Config>
 </Container>

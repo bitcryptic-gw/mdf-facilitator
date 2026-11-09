@@ -20,7 +20,7 @@ POST /settle      x402 settle
 `bitcryptic/mdf-facilitator`, pinned **by digest** everywhere it is deployed:
 
 ```
-bitcryptic/mdf-facilitator@sha256:b7df3f7244fd0a2352dbe982d5702d2f2e79845943d661266b83dd7893fa2980
+bitcryptic/mdf-facilitator@sha256:626252669440b04a1787370eb98ce4733d8a86c55a114d7d6b586b72ac3c5758
 ```
 
 The image contains no secrets. The signer key is a bind-mounted file.
@@ -84,7 +84,7 @@ load-balanced pool or flap a monitor. The body says what is wrong:
 ```json
 {
   "status": "ok" | "degraded",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "uptimeSeconds": 1234,
   "balancesUpdatedAt": "2026-11-09T10:47:22.344Z",
   "stale": false,
