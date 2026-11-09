@@ -1,17 +1,23 @@
 <?xml version="1.0"?>
 <!--
-  MDF x402 v2 facilitator — public leg (staging, blue/green).
+  MDF x402 v2 facilitator — syd leg (staging, blue/green).
 
-  NOT in the Caddy pool and NOT behind x402.bitcryptic.com. Reached on
-  http://unraid-public:18080 over the tailnet for acceptance testing only.
+  Joins the tailnet as its own node via Unraid's Tailscale integration (the same
+  hook the v1 legs use). No host port is published: nothing is reachable from
+  the LAN, and /settle cannot be driven by anyone who is not on the tailnet.
 
-  Apply through the Unraid Docker UI (Docker tab -> Add Container -> Template),
-  not with `docker run`, so `my-mdf-facilitator-v2-public.xml` is generated and
+  Apply through the Unraid Docker UI (Docker -> Add Container), not with
+  `docker run`, so `my-mdf-facilitator-v2-public.xml` is generated and
   `net.unraid.docker.managed=dockerman` is set. Pinned by digest.
+
+  First start: paste a single-use tailnet auth key into TAILSCALE_PARAMS in the
+  form "authkey=tskey-auth-..." (with a leading double dash, as the tailscale
+  CLI expects). After the node appears, clear that field and restart; the node
+  rejoins from the state saved in /app/data/.tailscale_state.
 -->
 <Container version="2">
   <Name>mdf-facilitator-v2-public</Name>
-  <Repository>bitcryptic/mdf-facilitator@sha256:3cb7bdc0fd079a3f74a361d0cce5c3012993cb8688c89547870df35257f198e2</Repository>
+  <Repository>bitcryptic/mdf-facilitator@sha256:b7df3f7244fd0a2352dbe982d5702d2f2e79845943d661266b83dd7893fa2980</Repository>
   <Registry>https://registry.hub.docker.com/</Registry>
   <Network>bridge</Network>
   <MyIP/>
@@ -19,27 +25,20 @@
   <Privileged>false</Privileged>
   <Support/>
   <Project>https://github.com/bitcryptic-gw/mdf</Project>
-  <Overview>MDF x402 v2 facilitator (staging leg, public). Not in the production pool.</Overview>
+  <Overview>MDF x402 v2 facilitator (staging leg, public). Tailnet node, no host port, not in the production pool.</Overview>
   <Category/>
-  <WebUI>http://[IP]:[PORT:8080]/health</WebUI>
+  <WebUI>http://mdf-facilitator-v2-public:8080/health</WebUI>
   <TemplateURL/>
   <Icon>https://raw.githubusercontent.com/bitcryptic-gw/bitcryptic-blog/main/bc-icon.png</Icon>
-  <ExtraParams>--restart=unless-stopped</ExtraParams>
+  <ExtraParams>--restart=unless-stopped --user 0:0 --device=/dev/net/tun --cap-add=NET_ADMIN --entrypoint=/opt/unraid/tailscale</ExtraParams>
   <PostArgs/>
   <CPUset/>
   <DateInstalled/>
   <DonateText/>
   <DonateLink/>
-  <Description>Self-hosted x402 v2 facilitator for MDF (exact on eip155:8453 and eip155:84532). Signer key is a bind-mounted file, mode 600, uid 1000. Staging leg: not in the Caddy pool.</Description>
+  <Description>Self-hosted x402 v2 facilitator for MDF (exact on eip155:8453 and eip155:84532). Joins the tailnet as mdf-facilitator-v2-public; no host port is published. The Unraid Tailscale hook starts as root, then the service drops to uid 1000 before reading the signer key.</Description>
   <Networking>
     <Mode>bridge</Mode>
-    <Publish>
-      <Port>
-        <HostPort>18080</HostPort>
-        <ContainerPort>8080</ContainerPort>
-        <Protocol>tcp</Protocol>
-      </Port>
-    </Publish>
   </Networking>
   <Data>
     <Volume>
@@ -51,6 +50,11 @@
       <HostDir>/mnt/cache/appdata/mdf-facilitator-v2-public/data</HostDir>
       <ContainerDir>/app/data</ContainerDir>
       <Mode>rw</Mode>
+    </Volume>
+    <Volume>
+      <HostDir>/usr/local/share/docker/tailscale_container_hook</HostDir>
+      <ContainerDir>/opt/unraid/tailscale</ContainerDir>
+      <Mode>ro</Mode>
     </Volume>
   </Data>
   <Environment>
@@ -77,6 +81,56 @@
     <Variable>
       <Value>300000</Value>
       <Name>BALANCE_POLL_MS</Name>
+      <Mode/>
+    </Variable>
+    <Variable>
+      <Value>1000</Value>
+      <Name>APP_UID</Name>
+      <Mode/>
+    </Variable>
+    <Variable>
+      <Value>1000</Value>
+      <Name>APP_GID</Name>
+      <Mode/>
+    </Variable>
+    <Variable>
+      <Value>node</Value>
+      <Name>ORG_ENTRYPOINT</Name>
+      <Mode/>
+    </Variable>
+    <Variable>
+      <Value>/app/src/index.ts</Value>
+      <Name>ORG_CMD</Name>
+      <Mode/>
+    </Variable>
+    <Variable>
+      <Value>mdf-facilitator-v2-public</Value>
+      <Name>TAILSCALE_HOSTNAME</Name>
+      <Mode/>
+    </Variable>
+    <Variable>
+      <Value>/app/data/.tailscale_state</Value>
+      <Name>TAILSCALE_STATE_DIR</Name>
+      <Mode/>
+    </Variable>
+    <Variable>
+      <Value>false</Value>
+      <Name>TAILSCALE_USERSPACE_NETWORKING</Name>
+      <Mode/>
+    </Variable>
+    <Variable>
+      <Value>false</Value>
+      <Name>TAILSCALE_ALLOW_LAN_ACCESS</Name>
+      <Mode/>
+    </Variable>
+    <Variable>
+      <Value>false</Value>
+      <Name>TAILSCALE_USE_SSH</Name>
+      <Mode/>
+    </Variable>
+    <Variable>
+      <Value></Value>
+      <Name>TAILSCALE_PARAMS</Name>
       <Mode/>
     </Variable>
   </Environment>

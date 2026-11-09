@@ -20,7 +20,7 @@ POST /settle      x402 settle
 `bitcryptic/mdf-facilitator`, pinned **by digest** everywhere it is deployed:
 
 ```
-bitcryptic/mdf-facilitator@sha256:3cb7bdc0fd079a3f74a361d0cce5c3012993cb8688c89547870df35257f198e2
+bitcryptic/mdf-facilitator@sha256:b7df3f7244fd0a2352dbe982d5702d2f2e79845943d661266b83dd7893fa2980
 ```
 
 The image contains no secrets. The signer key is a bind-mounted file.
@@ -84,7 +84,7 @@ load-balanced pool or flap a monitor. The body says what is wrong:
 ```json
 {
   "status": "ok" | "degraded",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "uptimeSeconds": 1234,
   "balancesUpdatedAt": "2026-11-09T10:47:22.344Z",
   "stale": false,
@@ -102,7 +102,10 @@ status is `degraded`.
 
 ## Security baseline
 
-- Non-root (`node`, uid 1000), `node:24-alpine`, no build toolchain in the image.
+- Runs as `node` (uid 1000) by default; under the Unraid Tailscale hook it starts
+  as root (the hook needs it) and **drops to uid 1000 before reading the key or
+  opening the socket** (`APP_UID`/`APP_GID`, default 1000).
+- `node:24-alpine`, no build toolchain in the image.
 - Request bodies capped before parsing; oversized requests get `413`.
 - Per-IP rate limit on every route.
 - Errors return `{"error":"internal error"}`; detail goes to the log only.
@@ -118,7 +121,7 @@ status is `degraded`.
 
 ```bash
 npm ci
-npm test          # 32 tests: key-file refusals, signer self-check, health, http, logging
+npm test          # 35 tests: key-file refusals, signer self-check, privileges, health, http, logging
 npm run typecheck
 ```
 
@@ -130,3 +133,9 @@ and therefore no build output to drift from the source.
 `deploy/` holds the Unraid templates and the apply instructions. The container is
 created through the Unraid Docker UI so the `my-*.xml` template stays the source
 of truth (see the MDF deployment rules).
+
+Each container is its own **tailnet node** via Unraid's Tailscale integration and
+publishes **no host port**: `/settle` is unauthenticated, and a host-port binding
+would let anyone on the LAN make the signer spend gas. The hook joins with a
+single-use auth key on first start; the key is then removed from the template and
+the node rejoins from state kept in `/app/data/.tailscale_state`.

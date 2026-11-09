@@ -25,6 +25,7 @@ const ALLOWED = new Set([
   "thresholdWei",
   "err",
   "uptimeSeconds",
+  "uid",
 ]);
 
 export interface Logger {

@@ -16,12 +16,21 @@ import { KeyFileError, loadSignerKey } from "./keyfile.ts";
 import { buildFacilitator, assertSupportedSigners, SignerSelfCheckError } from "./facilitator.ts";
 import { BalanceMonitor } from "./health.ts";
 import { createHandler } from "./http.ts";
+import { dropPrivileges } from "./privileges.ts";
 import { createLogger } from "./log.ts";
 
-const VERSION = "0.1.0";
+const VERSION = "0.1.1";
 
+/**
+ * The Unraid Tailscale hook runs as root (it installs packages, starts
+ * tailscaled and needs NET_ADMIN), then execs this process. Drop to the
+ * unprivileged uid before the key is read or the socket is opened, so the
+ * facilitator itself never runs as root and the key-file ownership check still
+ * means something. A no-op when the container already starts as the app user.
+ */
 async function main(): Promise<void> {
   const log = createLogger();
+  dropPrivileges(log);
   const config = loadConfig();
 
   let privateKey: `0x${string}`;
