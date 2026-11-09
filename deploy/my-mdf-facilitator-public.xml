@@ -16,7 +16,7 @@
   on the run path, so a template carrying them silently loses its mounts.
 
   First start: paste a single-use tailnet auth key (minted with tag:misc-services)
-  into TailscaleParams as "authkey=tskey-auth-..." preceded by two dashes, as the
+  into TailscaleParams as the authkey flag (two dashes, then authkey=) followed by the single-use key, as the
   tailscale CLI expects. After the node appears, clear that field and restart;
   the node rejoins from the state saved in /app/data/.tailscale_state.
 -->
@@ -56,103 +56,13 @@
   <TailscaleAcceptRoutes>false</TailscaleAcceptRoutes>
   <TailscaleWebUI>http://[noserve]/health</TailscaleWebUI>
   <TailscaleParams/>
-  <Config>
-    <Name>Signer secrets</Name>
-    <Target>/run/secrets</Target>
-    <Default>/mnt/cache/appdata/mdf-facilitator-public/secrets</Default>
-    <Mode>ro</Mode>
-    <Description>Directory holding facilitator_signer_key (mode 600, uid 1000). Mounted read-only.</Description>
-    <Type>Path</Type>
-    <Display>always</Display>
-    <Required>true</Required>
-    <Mask>false</Mask>
-  </Config>
-  <Config>
-    <Name>Data</Name>
-    <Target>/app/data</Target>
-    <Default>/mnt/cache/appdata/mdf-facilitator-public/data</Default>
-    <Mode>rw</Mode>
-    <Description>Persistent data. The Unraid Tailscale hook keeps .tailscale_state here, so the node survives restarts without an auth key.</Description>
-    <Type>Path</Type>
-    <Display>always</Display>
-    <Required>true</Required>
-    <Mask>false</Mask>
-  </Config>
-  <Config>
-    <Name>WebUI Port</Name>
-    <Target>PORT</Target>
-    <Default>8080</Default>
-    <Mode/>
-    <Description>Listen port inside the container. Not published to the host.</Description>
-    <Type>Variable</Type>
-    <Display>always</Display>
-    <Required>false</Required>
-    <Mask>false</Mask>
-  </Config>
-  <Config>
-    <Name>Base mainnet RPC</Name>
-    <Target>BASE_RPC_URL</Target>
-    <Default>https://mainnet.base.org</Default>
-    <Mode/>
-    <Description>JSON-RPC for eip155:8453.</Description>
-    <Type>Variable</Type>
-    <Display>always</Display>
-    <Required>false</Required>
-    <Mask>false</Mask>
-  </Config>
-  <Config>
-    <Name>Base Sepolia RPC</Name>
-    <Target>BASE_SEPOLIA_RPC_URL</Target>
-    <Default>https://sepolia.base.org</Default>
-    <Mode/>
-    <Description>JSON-RPC for eip155:84532.</Description>
-    <Type>Variable</Type>
-    <Display>always</Display>
-    <Required>false</Required>
-    <Mask>false</Mask>
-  </Config>
-  <Config>
-    <Name>Low-gas threshold (wei)</Name>
-    <Target>GAS_THRESHOLD_WEI</Target>
-    <Default>500000000000000</Default>
-    <Mode/>
-    <Description>/health reports degraded below this balance. Default 0.0005 ETH.</Description>
-    <Type>Variable</Type>
-    <Display>advanced</Display>
-    <Required>false</Required>
-    <Mask>false</Mask>
-  </Config>
-  <Config>
-    <Name>Balance poll interval (ms)</Name>
-    <Target>BALANCE_POLL_MS</Target>
-    <Default>300000</Default>
-    <Mode/>
-    <Description>Background poll for /health balances. Never an RPC call per request.</Description>
-    <Type>Variable</Type>
-    <Display>advanced</Display>
-    <Required>false</Required>
-    <Mask>false</Mask>
-  </Config>
-  <Config>
-    <Name>App uid</Name>
-    <Target>APP_UID</Target>
-    <Default>1000</Default>
-    <Mode/>
-    <Description>uid the service drops to after the Tailscale hook starts it as root. Must own the signer key file.</Description>
-    <Type>Variable</Type>
-    <Display>advanced</Display>
-    <Required>false</Required>
-    <Mask>false</Mask>
-  </Config>
-  <Config>
-    <Name>App gid</Name>
-    <Target>APP_GID</Target>
-    <Default>1000</Default>
-    <Mode/>
-    <Description>gid the service drops to after the Tailscale hook starts it as root.</Description>
-    <Type>Variable</Type>
-    <Display>advanced</Display>
-    <Required>false</Required>
-    <Mask>false</Mask>
-  </Config>
+  <Config Name="Signer secrets" Target="/run/secrets" Default="/mnt/cache/appdata/mdf-facilitator-public/secrets" Mode="ro" Description="Directory holding facilitator_signer_key (mode 600, uid 1000). Mounted read-only." Type="Path" Display="always" Required="true" Mask="false">/mnt/cache/appdata/mdf-facilitator-public/secrets</Config>
+  <Config Name="Data" Target="/app/data" Default="/mnt/cache/appdata/mdf-facilitator-public/data" Mode="rw" Description="Persistent data. The Unraid Tailscale hook keeps .tailscale_state here, so the node survives restarts without an auth key." Type="Path" Display="always" Required="true" Mask="false">/mnt/cache/appdata/mdf-facilitator-public/data</Config>
+  <Config Name="WebUI Port" Target="PORT" Default="8080" Mode="" Description="Listen port inside the container. Not published to the host." Type="Variable" Display="always" Required="false" Mask="false">8080</Config>
+  <Config Name="Base mainnet RPC" Target="BASE_RPC_URL" Default="https://mainnet.base.org" Mode="" Description="JSON-RPC for eip155:8453." Type="Variable" Display="always" Required="false" Mask="false">https://mainnet.base.org</Config>
+  <Config Name="Base Sepolia RPC" Target="BASE_SEPOLIA_RPC_URL" Default="https://sepolia.base.org" Mode="" Description="JSON-RPC for eip155:84532." Type="Variable" Display="always" Required="false" Mask="false">https://sepolia.base.org</Config>
+  <Config Name="Low-gas threshold (wei)" Target="GAS_THRESHOLD_WEI" Default="500000000000000" Mode="" Description="/health reports degraded below this balance. Default 0.0005 ETH." Type="Variable" Display="advanced" Required="false" Mask="false">500000000000000</Config>
+  <Config Name="Balance poll interval (ms)" Target="BALANCE_POLL_MS" Default="300000" Mode="" Description="Background poll for /health balances. Never an RPC call per request." Type="Variable" Display="advanced" Required="false" Mask="false">300000</Config>
+  <Config Name="App uid" Target="APP_UID" Default="1000" Mode="" Description="uid the service drops to after the Tailscale hook starts it as root. Must own the signer key file." Type="Variable" Display="advanced" Required="false" Mask="false">1000</Config>
+  <Config Name="App gid" Target="APP_GID" Default="1000" Mode="" Description="gid the service drops to after the Tailscale hook starts it as root." Type="Variable" Display="advanced" Required="false" Mask="false">1000</Config>
 </Container>

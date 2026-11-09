@@ -27,6 +27,45 @@ from a stale template silently loses settings that only ever existed live. Every
 MDF container is created through the Docker UI so the template stays the source
 of truth. That is a standing rule, not a preference.
 
+## Template notes: `<Config>` entries are attributes, not child elements
+
+Every mount and every variable in these templates is a single `<Config>` element
+whose fields are **attributes**, with the value as the element's text:
+
+```xml
+<Config Name="Data" Target="/app/data" Default="/mnt/cache/appdata/mdf-facilitator-syd/data"
+        Mode="rw" Description="…" Type="Path" Display="always" Required="true" Mask="false">/mnt/cache/appdata/mdf-facilitator-syd/data</Config>
+```
+
+Unraid's `xmlToVar()` (`dynamix.docker.manager/include/Helpers.php`) reads a
+`<Config>` with `$config->attributes()` and takes the value from the element
+text, falling back to `Default`. The child-element form below is **valid XML and
+completely invisible to it** — every entry is skipped, so the container starts
+with no mounts and no variables:
+
+```xml
+<!-- WRONG: dockerMan reads attributes only -->
+<Config><Name>Data</Name><Target>/app/data</Target><Type>Path</Type></Config>
+```
+
+That is the fault that produced MDF #63's "signer key file is missing" and the
+missing Tailscale state: nine of nine entries were skipped while the template
+parsed cleanly. Two other silent traps, for the same reason:
+
+- **No `--` inside an XML comment.** It is illegal XML; simplexml returns false
+  and the Unraid UI shows a **blank template** with no error message. Header
+  comments must not contain flags like `--authkey`.
+- **No legacy `<Data>`, `<Networking>` or `<Environment>` blocks.** `-v` comes
+  only from `<Config Type="Path">`, `-e` from `<Config Type="Variable">`, and
+  the network from `<Network>`.
+
+The repo tests this against Unraid's own logic rather than a reimplementation:
+`tests/unraid/xmlconfig.php` is a faithful copy of `xmlToVar()`'s `<Config>`
+loop and `xmlToCommand()`'s `-v`/`-e` selection (cited to a webgui commit in its
+header), `tests/template.test.ts` reads attributes only, compares the structure
+with the `v1-*.xml` reference templates, and parses every template with PHP's
+simplexml. `npm test` therefore needs `php` installed.
+
 ## 1. Key file (per host, before the container exists)
 
 The service runs as **uid 1000 / gid 1000** (`APP_UID`/`APP_GID`, the image's
@@ -119,7 +158,9 @@ container is removed and re-added.
 
    Must show `/mnt/cache/appdata/mdf-facilitator-syd/secrets -> /run/secrets (false)`
    and `/mnt/cache/appdata/mdf-facilitator-syd/data -> /app/data (true)`, plus the
-   Tailscale hook. If they are absent, the template still uses a `<Data>` block.
+   Tailscale hook. If they are absent, the template's `<Config>` entries are not
+   being read — a legacy `<Data>` block, or the child-element form instead of
+   attributes (see "Template notes").
 
 5. **Mint a fresh single-use auth key with `tag:misc-services`** — the same tag
    the v1 facilitator containers use. Tags come from the auth key, not from the
@@ -150,8 +191,11 @@ ls -lan /mnt/cache/appdata/mdf-facilitator-syd/data/.tailscale_state
 ```
 
 `npm test` in this repo fails if a template reintroduces a `<Data>`,
-`<Networking>` or `<Environment>` block, drops either mount, removes a v1
-Tailscale element, leaves `TailscaleParams` non-empty, or publishes a port.
+`<Networking>` or `<Environment>` block, writes a `<Config>` without a `Target`
+attribute or in the child-element form, drops either mount, removes a v1
+Tailscale or top-level element, leaves `TailscaleParams` non-empty, publishes a
+port, or stops being well-formed XML. The same checks run through
+`tests/unraid/xmlconfig.php`, which is Unraid's own parsing logic.
 
 ### Proving the key is gone
 
@@ -166,10 +210,20 @@ The template's `TAILSCALE_PARAMS` must be empty too.
 ### Troubleshooting
 
 **`signer key file is missing: /run/secrets/facilitator_signer_key`** — the
-`/run/secrets` mount is absent, not a problem with the key file. The file on the
-host is usually correct (`-rw------- 1000 1000 66`); check `.Mounts` as above.
-This means the template still has a `<Data>` block instead of a
-`<Config Type="Path">` entry.
+`/run/secrets` mount is absent, not a problem with the key file. Prove it:
+
+```bash
+docker inspect mdf-facilitator-syd -f '{{json .Mounts}}' | jq -r '.[] | "\(.Source) -> \(.Destination)"'
+```
+
+An **empty list, or a list with only the Tailscale hook and no `/run/secrets` /
+`/app/data`**, means the template's `<Config>` entries were skipped — either the
+template still has a `<Data>` block, or its `<Config>` entries use the
+child-element form (`<Config><Target>…</Target></Config>`) instead of attributes.
+The file on the host is usually correct (`-rw------- 1000 1000 66`); check it only
+after `.Mounts` shows the bind. Fix the template, remove and re-add the container
+(an edit keeps the stale config), then re-check `.Mounts` **before** minting a
+new auth key.
 
 **`backend error: invalid key`** on start or restart — the single-use key has
 already been spent (a restart replays `tailscale up` with it). Mint a new key.
@@ -179,6 +233,17 @@ Before rejoining, check the admin console for a stale offline
 
 **`Option disabled as Network type is not bridge or custom`** — the template has
 a legacy `<Networking>` block. Remove it; `<Network>bridge</Network>` is enough.
+
+**The template shows up blank in the UI, or not at all** — it is not well-formed
+XML and Unraid reports nothing. Almost always a `--` inside a comment (a CLI flag
+pasted into the header, e.g. `--authkey`). Check it directly:
+
+```bash
+php -r 'libxml_use_internal_errors(true); var_dump(simplexml_load_file($argv[1]) !== false);' my-mdf-facilitator-syd.xml
+```
+
+`bool(false)` is the blank template; `php tests/unraid/xmlconfig.php <file>`
+prints the libxml reason.
 
 **`ERROR: Couldn't detect persistent Docker directory for .tailscale_state!`** —
 the `TailscaleStateDir` element is empty. It must be

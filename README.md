@@ -121,7 +121,8 @@ status is `degraded`.
 
 ```bash
 npm ci
-npm test          # 48 tests: key-file refusals, signer self-check, privileges, health, http, logging, template guard
+npm test          # 60 tests: key-file refusals, signer self-check, privileges, health, http, logging, template guard
+                  # (the template guard needs `php` — it parses templates with simplexml, as Unraid does)
 npm run typecheck
 ```
 

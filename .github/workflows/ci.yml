@@ -17,6 +17,31 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npm test
+      # The template guard needs PHP: Unraid parses templates with simplexml, and
+      # tests/template.test.ts runs tests/unraid/xmlconfig.php (a faithful copy of
+      # Helpers.php xmlToVar()/xmlToCommand()). ubuntu-latest ships PHP.
+      - name: Unraid templates through PHP, as dockerMan parses them
+        run: |
+          php -v | head -1
+          for f in deploy/my-mdf-facilitator-*.xml; do
+            echo "== $f"
+            out="$(php tests/unraid/xmlconfig.php "$f")"
+            echo "$out"
+            if grep -q SKIPPED <<<"$out"; then
+              echo "::error::$f has <Config> entries dockerMan would skip"
+              exit 1
+            fi
+            mounts="$(grep -c '^  -v ' <<<"$out")"
+            if [ "$mounts" != "2" ]; then
+              echo "::error::$f produced $mounts mounts, expected 2"
+              exit 1
+            fi
+          done
+      - name: Every template is well-formed XML (simplexml, as Unraid uses)
+        run: |
+          for f in deploy/*.xml; do
+            php -r 'libxml_use_internal_errors(true); if (simplexml_load_file($argv[1]) === false) { foreach (libxml_get_errors() as $e) fwrite(STDERR, trim($e->message).PHP_EOL); fwrite(STDERR, "$argv[1]: not well-formed".PHP_EOL); exit(1); }' "$f"
+          done
 
   image:
     runs-on: ubuntu-latest
