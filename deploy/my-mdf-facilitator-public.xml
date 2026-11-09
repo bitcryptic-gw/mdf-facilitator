@@ -10,10 +10,10 @@
   `docker run`, so `my-mdf-facilitator-public.xml` is generated and
   `net.unraid.docker.managed=dockerman` is set. Pinned by digest.
 
-  The Tailscale settings are first-class template elements (TailscaleEnabled,
-  TailscaleHostname, TailscaleStateDir, TailscaleUserspaceNetworking), not
-  environment variables: the integration reads the elements and turns them into
-  the TAILSCALE_* environment itself.
+  Everything this file contains is read by Unraid's dockerMan
+  (dynamix.docker.manager/include/Helpers.php, xmlToCommand). There are no
+  legacy <Data>, <Networking> or <Environment> blocks: dockerMan ignores them
+  on the run path, so a template carrying them silently loses its mounts.
 
   First start: paste a single-use tailnet auth key (minted with tag:misc-services)
   into TailscaleParams as "authkey=tskey-auth-..." preceded by two dashes, as the
@@ -32,7 +32,7 @@
   <Project>https://github.com/bitcryptic-gw/mdf</Project>
   <Overview>MDF x402 v2 facilitator (staging leg, public). Tailnet node, no host port, not in the production pool.</Overview>
   <Category/>
-  <WebUI>http://mdf-facilitator-public:8080/health</WebUI>
+  <WebUI>http://[noserve]:8080/health</WebUI>
   <TemplateURL/>
   <Icon>https://raw.githubusercontent.com/bitcryptic-gw/bitcryptic-blog/main/bc-icon.png</Icon>
   <ExtraParams>--restart=unless-stopped --user 0:0</ExtraParams>
@@ -42,29 +42,42 @@
   <DonateText/>
   <DonateLink/>
   <Description>Self-hosted x402 v2 facilitator for MDF (exact on eip155:8453 and eip155:84532). Joins the tailnet as mdf-facilitator-public; no host port is published. The Unraid Tailscale hook starts as root, then the service drops to uid 1000 before reading the signer key.</Description>
-  <Networking>
-    <Mode>bridge</Mode>
-  </Networking>
   <TailscaleEnabled>true</TailscaleEnabled>
   <TailscaleHostname>mdf-facilitator-public</TailscaleHostname>
   <TailscaleStateDir>/app/data/.tailscale_state</TailscaleStateDir>
   <TailscaleUserspaceNetworking>false</TailscaleUserspaceNetworking>
   <TailscaleLANAccess>false</TailscaleLANAccess>
   <TailscaleSSH>false</TailscaleSSH>
-  <TailscaleWebUI>http://mdf-facilitator-public:8080/health</TailscaleWebUI>
-  <TailscaleParams></TailscaleParams>
-  <Data>
-    <Volume>
-      <HostDir>/mnt/cache/appdata/mdf-facilitator-public/secrets</HostDir>
-      <ContainerDir>/run/secrets</ContainerDir>
-      <Mode>ro</Mode>
-    </Volume>
-    <Volume>
-      <HostDir>/mnt/cache/appdata/mdf-facilitator-public/data</HostDir>
-      <ContainerDir>/app/data</ContainerDir>
-      <Mode>rw</Mode>
-    </Volume>
-  </Data>
+  <TailscaleIsExitNode>false</TailscaleIsExitNode>
+  <TailscaleExitNodeIP></TailscaleExitNodeIP>
+  <TailscaleServe>no</TailscaleServe>
+  <TailscaleDParams></TailscaleDParams>
+  <TailscaleRoutes></TailscaleRoutes>
+  <TailscaleAcceptRoutes>false</TailscaleAcceptRoutes>
+  <TailscaleWebUI>http://[noserve]/health</TailscaleWebUI>
+  <TailscaleParams/>
+  <Config>
+    <Name>Signer secrets</Name>
+    <Target>/run/secrets</Target>
+    <Default>/mnt/cache/appdata/mdf-facilitator-public/secrets</Default>
+    <Mode>ro</Mode>
+    <Description>Directory holding facilitator_signer_key (mode 600, uid 1000). Mounted read-only.</Description>
+    <Type>Path</Type>
+    <Display>always</Display>
+    <Required>true</Required>
+    <Mask>false</Mask>
+  </Config>
+  <Config>
+    <Name>Data</Name>
+    <Target>/app/data</Target>
+    <Default>/mnt/cache/appdata/mdf-facilitator-public/data</Default>
+    <Mode>rw</Mode>
+    <Description>Persistent data. The Unraid Tailscale hook keeps .tailscale_state here, so the node survives restarts without an auth key.</Description>
+    <Type>Path</Type>
+    <Display>always</Display>
+    <Required>true</Required>
+    <Mask>false</Mask>
+  </Config>
   <Config>
     <Name>WebUI Port</Name>
     <Target>PORT</Target>

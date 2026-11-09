@@ -99,25 +99,59 @@ process never reads it: it drops to uid 1000 before doing anything and only
 touches `/run/secrets` and its own socket. The signer key stays `1000:1000 600`
 under `/run/secrets`, unaffected.
 
-### First start
+### Recreating a container (do this after any template change)
 
-1. **Mint the single-use auth key with `tag:misc-services`** — the same tag the
-   existing v1 facilitator containers use. Tags come from the auth key, not from
-   the container config, which is why they do not appear in the template or in
-   `docker inspect`. Tagged nodes have **key expiry disabled by default**, so
+`dockerMan` keeps whatever the container was created with. Editing a container in
+the UI re-uses that stale config, so a template fix only takes effect after the
+container is removed and re-added.
+
+1. **Stop the container and stop it restarting** (Docker → the container →
+   Stop; if it is loop-restarting, toggle autostart off first).
+2. **Re-place the template** (the `scp` in this README).
+3. **Remove the container** in the UI, then **Add Container** from the template.
+   Do not edit the existing one.
+4. **Check the mounts before going further** — this is the step that was missed
+   and cost a day:
+
+   ```bash
+   docker inspect mdf-facilitator-syd -f '{{json .Mounts}}' | jq -r '.[] | "\(.Source) -> \(.Destination) (\(.RW))"'
+   ```
+
+   Must show `/mnt/cache/appdata/mdf-facilitator-syd/secrets -> /run/secrets (false)`
+   and `/mnt/cache/appdata/mdf-facilitator-syd/data -> /app/data (true)`, plus the
+   Tailscale hook. If they are absent, the template still uses a `<Data>` block.
+
+5. **Mint a fresh single-use auth key with `tag:misc-services`** — the same tag
+   the v1 facilitator containers use. Tags come from the auth key, not from the
+   container config. Tagged nodes have **key expiry disabled by default**, so
    there is nothing to disable in the admin console.
-2. Paste it into the template's **`TailscaleParams`** element as
-   `--authkey=tskey-auth-…` (the hook passes that string straight to
-   `tailscale up`; there is no separate auth-key element in this hook version).
-3. Start the container from the UI.
-4. Confirm the node exists: `tailscale status | grep mdf-facilitator-syd`,
-   or look for it in the admin console. Confirm the state was written:
-   `ls /mnt/cache/appdata/mdf-facilitator-syd/data/.tailscale_state`.
-5. Confirm the service: `curl -s http://mdf-facilitator-syd:8080/supported`
-   from any tailnet node, and that `/health` shows a balance reading.
-6. **Clear `TailscaleParams`** in the template and apply/restart.
-7. Confirm it rejoins from saved state (the container log shows
-   `Starting tailscale` / `Connected`, and the node name is unchanged).
+6. Paste it into the template's **`TailscaleParams`** element as
+   `--authkey=tskey-auth-…` and start the container.
+7. Confirm the node joined and the state was written to the host:
+
+   ```bash
+   tailscale status | grep mdf-facilitator-syd
+   ls -lan /mnt/cache/appdata/mdf-facilitator-syd/data/.tailscale_state
+   curl -s http://mdf-facilitator-syd:8080/supported | jq .signers
+   ```
+
+8. **Clear `TailscaleParams`** in the template, then remove/re-add the container
+   (or apply the template change through the UI's recreate path) and restart.
+9. Confirm it rejoins from saved state: the log shows `Starting tailscale` and
+   the node name is unchanged, and `/supported` still answers.
+
+### Post-create checks
+
+```bash
+docker inspect mdf-facilitator-syd -f '{{json .Mounts}}'         # both paths, ro/rw as above
+docker inspect mdf-facilitator-syd -f '{{json .Config.Env}}'     # TAILSCALE_STATE_DIR=/app/data/.tailscale_state
+docker inspect mdf-facilitator-syd -f '{{json .HostConfig.PortBindings}}'   # {}
+ls -lan /mnt/cache/appdata/mdf-facilitator-syd/data/.tailscale_state
+```
+
+`npm test` in this repo fails if a template reintroduces a `<Data>`,
+`<Networking>` or `<Environment>` block, drops either mount, removes a v1
+Tailscale element, leaves `TailscaleParams` non-empty, or publishes a port.
 
 ### Proving the key is gone
 
@@ -127,24 +161,28 @@ After the restart, the running container must not carry the key:
 docker inspect mdf-facilitator-syd --format '{{json .Config.Env}}' | grep -i authkey || echo "no auth key in the container config"
 ```
 
-The template's `TAILSCALE_PARAMS` must be empty too. Do the same check on the
-`my-mdf-facilitator-*.xml` file if the key was ever saved there.
+The template's `TAILSCALE_PARAMS` must be empty too.
 
 ### Troubleshooting
 
-**`ERROR: Couldn't detect persistent Docker directory for .tailscale_state!`**
-The hook could not find a state directory. It checks `TAILSCALE_STATE_DIR` first
-then several fallbacks, and the container has no `/config` or `/data`; the
-template must therefore set the `TailscaleStateDir` element to
-`/app/data/.tailscale_state`. If the field is blank in the UI, the integration
-does not export the variable at all and the hook aborts before `tailscale up`.
-Fill the field (Tailscale section → advanced), apply, and start again.
+**`signer key file is missing: /run/secrets/facilitator_signer_key`** — the
+`/run/secrets` mount is absent, not a problem with the key file. The file on the
+host is usually correct (`-rw------- 1000 1000 66`); check `.Mounts` as above.
+This means the template still has a `<Data>` block instead of a
+`<Config Type="Path">` entry.
 
-**The container is "running" but nothing answers on the node name.** Check the
-container log: if it shows `Executing Unraid Docker Hook` then stops without
-`Starting container...`, the hook exec'd an empty `ORG_ENTRYPOINT`. That means
-the image had no `ENTRYPOINT` (fixed in 0.1.2) or the template lost the
-`TailscaleEnabled` element.
+**`backend error: invalid key`** on start or restart — the single-use key has
+already been spent (a restart replays `tailscale up` with it). Mint a new key.
+Before rejoining, check the admin console for a stale offline
+`mdf-facilitator-syd` node and remove it; otherwise the new join appears as
+`mdf-facilitator-syd-1`.
+
+**`Option disabled as Network type is not bridge or custom`** — the template has
+a legacy `<Networking>` block. Remove it; `<Network>bridge</Network>` is enough.
+
+**`ERROR: Couldn't detect persistent Docker directory for .tailscale_state!`** —
+the `TailscaleStateDir` element is empty. It must be
+`/app/data/.tailscale_state`.
 
 ## 3. Verify (read-only)
 

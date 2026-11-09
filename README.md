@@ -121,7 +121,7 @@ status is `degraded`.
 
 ```bash
 npm ci
-npm test          # 35 tests: key-file refusals, signer self-check, privileges, health, http, logging
+npm test          # 48 tests: key-file refusals, signer self-check, privileges, health, http, logging, template guard
 npm run typecheck
 ```
 
