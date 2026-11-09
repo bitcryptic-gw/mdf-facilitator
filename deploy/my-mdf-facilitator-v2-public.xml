@@ -11,7 +11,7 @@
 -->
 <Container version="2">
   <Name>mdf-facilitator-v2-public</Name>
-  <Repository>bitcryptic/mdf-facilitator@sha256:e80f13616b9d20cd247abc0126d99508d187c57dde1e56988708123381c6ffe0</Repository>
+  <Repository>bitcryptic/mdf-facilitator@sha256:3cb7bdc0fd079a3f74a361d0cce5c3012993cb8688c89547870df35257f198e2</Repository>
   <Registry>https://registry.hub.docker.com/</Registry>
   <Network>bridge</Network>
   <MyIP/>

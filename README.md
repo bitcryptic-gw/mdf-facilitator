@@ -20,7 +20,7 @@ POST /settle      x402 settle
 `bitcryptic/mdf-facilitator`, pinned **by digest** everywhere it is deployed:
 
 ```
-bitcryptic/mdf-facilitator@sha256:e80f13616b9d20cd247abc0126d99508d187c57dde1e56988708123381c6ffe0
+bitcryptic/mdf-facilitator@sha256:3cb7bdc0fd079a3f74a361d0cce5c3012993cb8688c89547870df35257f198e2
 ```
 
 The image contains no secrets. The signer key is a bind-mounted file.
