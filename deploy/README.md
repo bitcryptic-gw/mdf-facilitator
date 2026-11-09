@@ -5,8 +5,8 @@ Two v2 legs run **alongside** the v1 pool. Neither is in the Caddy pool, and
 
 | leg | host | container | tailnet node | reachable at |
 |---|---|---|---|---|
-| syd | `unraid-syd` | `mdf-facilitator-v2-syd` | `mdf-facilitator-v2-syd` | `http://mdf-facilitator-v2-syd:8080` |
-| public | `unraid-public` | `mdf-facilitator-v2-public` | `mdf-facilitator-v2-public` | `http://mdf-facilitator-v2-public:8080` |
+| syd | `unraid-syd` | `mdf-facilitator-syd` | `mdf-facilitator-syd` | `http://mdf-facilitator-syd:8080` |
+| public | `unraid-public` | `mdf-facilitator-public` | `mdf-facilitator-public` | `http://mdf-facilitator-public:8080` |
 
 **No host port is published.** Each container is its own tailnet node via
 Unraid's Tailscale integration, exactly as the v1 legs are. That keeps the
@@ -36,7 +36,7 @@ it is never briefly world-readable:
 
 ```bash
 umask 077
-BASE=/mnt/cache/appdata/mdf-facilitator-v2-syd
+BASE=/mnt/cache/appdata/mdf-facilitator-syd
 install -d -m 700 -o 1000 -g 1000 "$BASE/secrets"
 install -d -m 755 -o 1000 -g 1000 "$BASE/data"
 
@@ -56,7 +56,7 @@ That prints the **public key** only (65 bytes, not a secret); the address is
 derived from it offline. The check afterwards must read exactly:
 
 ```
--rw------- 1 1000 1000 66 <date> /mnt/cache/appdata/mdf-facilitator-v2-syd/secrets/facilitator_signer_key
+-rw------- 1 1000 1000 66 <date> /mnt/cache/appdata/mdf-facilitator-syd/secrets/facilitator_signer_key
 ```
 
 (`66` bytes: `0x` plus 64 hex characters. Anything wider than `-rw-------` and
@@ -74,7 +74,7 @@ The template ships the fields Unraid's hook reads, modelled on the running v1
 |---|---|---|
 | entrypoint | `/opt/unraid/tailscale` (ExtraParams) | the hook re-execs the real command |
 | `ORG_ENTRYPOINT` / `ORG_CMD` | `node` / `/app/src/index.ts` | what the hook execs after the tailnet is up |
-| `TAILSCALE_HOSTNAME` | `mdf-facilitator-v2-syd` / `-public` | the node name proposed for the leg |
+| `TAILSCALE_HOSTNAME` | `mdf-facilitator-syd` / `-public` | the node name proposed for the leg |
 | `TAILSCALE_STATE_DIR` | `/app/data/.tailscale_state` | state survives restarts, on the appdata mount |
 | `TAILSCALE_USERSPACE_NETWORKING` | `false` | kernel/TUN mode, so inbound `:8080` works |
 | `--device=/dev/net/tun`, `--cap-add=NET_ADMIN` | ExtraParams | required by TUN mode |
@@ -84,17 +84,22 @@ The template ships the fields Unraid's hook reads, modelled on the running v1
 
 ### First start
 
-1. Paste the key into `TAILSCALE_PARAMS` as `--authkey=tskey-auth-…` (the hook
+1. **Mint the single-use auth key with `tag:misc-services`** — the same tag the
+   existing v1 facilitator containers use. Tags come from the auth key, not from
+   the container config, which is why they do not appear in the template or in
+   `docker inspect`. Tagged nodes have **key expiry disabled by default**, so
+   there is nothing to disable in the admin console.
+2. Paste the key into `TAILSCALE_PARAMS` as `--authkey=tskey-auth-…` (the hook
    passes that string straight to `tailscale up`; there is no separate auth-key
    variable in this hook version).
-2. Start the container from the UI.
-3. Confirm the node exists: `tailscale status | grep mdf-facilitator-v2-syd`,
+3. Start the container from the UI.
+4. Confirm the node exists: `tailscale status | grep mdf-facilitator-syd`,
    or look for it in the admin console. Confirm the state was written:
-   `ls /mnt/cache/appdata/mdf-facilitator-v2-syd/data/.tailscale_state`.
-4. Confirm the service: `curl -s http://mdf-facilitator-v2-syd:8080/supported`
+   `ls /mnt/cache/appdata/mdf-facilitator-syd/data/.tailscale_state`.
+5. Confirm the service: `curl -s http://mdf-facilitator-syd:8080/supported`
    from any tailnet node.
-5. **Clear `TAILSCALE_PARAMS`** in the template and apply/restart.
-6. Confirm it rejoins from saved state (the container log shows
+6. **Clear `TAILSCALE_PARAMS`** in the template and apply/restart.
+7. Confirm it rejoins from saved state (the container log shows
    `Starting tailscale` / `Connected`, and the node name is unchanged).
 
 ### Proving the key is gone
@@ -102,17 +107,17 @@ The template ships the fields Unraid's hook reads, modelled on the running v1
 After the restart, the running container must not carry the key:
 
 ```bash
-docker inspect mdf-facilitator-v2-syd --format '{{json .Config.Env}}' | grep -i authkey || echo "no auth key in the container config"
+docker inspect mdf-facilitator-syd --format '{{json .Config.Env}}' | grep -i authkey || echo "no auth key in the container config"
 ```
 
 The template's `TAILSCALE_PARAMS` must be empty too. Do the same check on the
-`my-mdf-facilitator-v2-*.xml` file if the key was ever saved there.
+`my-mdf-facilitator-*.xml` file if the key was ever saved there.
 
 ## 3. Verify (read-only)
 
 ```bash
-curl -s http://mdf-facilitator-v2-syd:8080/supported | jq .
-curl -s http://mdf-facilitator-v2-syd:8080/health    | jq .
+curl -s http://mdf-facilitator-syd:8080/supported | jq .
+curl -s http://mdf-facilitator-syd:8080/health    | jq .
 ```
 
 Expected: `kinds` lists `exact` for `eip155:8453` and `eip155:84532`;
@@ -170,9 +175,9 @@ Targets are the **tailnet node names**, not host:port:
 - [ ] **Fund mainnet gas at cutover** (0.002 ETH per signer); `/health` reports
       `ok` on `eip155:8453`.
 - [ ] Caddy: change **only** the two upstream addresses for
-      `x402.bitcryptic.com`, to the legs' tailnet names on 8080; keep
-      `lb_policy round_robin`, `health_uri /health`; add `health_interval 30s`,
-      `fail_duration 30s`.
+      `x402.bitcryptic.com`, to `mdf-facilitator-syd:8080` and
+      `mdf-facilitator-public:8080`; keep `lb_policy round_robin`,
+      `health_uri /health`; add `health_interval 30s`, `fail_duration 30s`.
 - [ ] Verify through the pool: `/supported` alternates the two v2 signers 10/10.
 - [ ] Confirm `x402.bitcryptic.com` still serves 402s and settles on Sepolia.
 - [ ] Kuma: retag the v2 monitors as production, add them to the notification set.

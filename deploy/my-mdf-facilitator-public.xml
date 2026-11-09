@@ -7,7 +7,7 @@
   the LAN, and /settle cannot be driven by anyone who is not on the tailnet.
 
   Apply through the Unraid Docker UI (Docker -> Add Container), not with
-  `docker run`, so `my-mdf-facilitator-v2-syd.xml` is generated and
+  `docker run`, so `my-mdf-facilitator-public.xml` is generated and
   `net.unraid.docker.managed=dockerman` is set. Pinned by digest.
 
   First start: paste a single-use tailnet auth key into TAILSCALE_PARAMS in the
@@ -16,7 +16,7 @@
   rejoins from the state saved in /app/data/.tailscale_state.
 -->
 <Container version="2">
-  <Name>mdf-facilitator-v2-syd</Name>
+  <Name>mdf-facilitator-public</Name>
   <Repository>bitcryptic/mdf-facilitator@sha256:b7df3f7244fd0a2352dbe982d5702d2f2e79845943d661266b83dd7893fa2980</Repository>
   <Registry>https://registry.hub.docker.com/</Registry>
   <Network>bridge</Network>
@@ -25,9 +25,9 @@
   <Privileged>false</Privileged>
   <Support/>
   <Project>https://github.com/bitcryptic-gw/mdf</Project>
-  <Overview>MDF x402 v2 facilitator (staging leg, syd). Tailnet node, no host port, not in the production pool.</Overview>
+  <Overview>MDF x402 v2 facilitator (staging leg, public). Tailnet node, no host port, not in the production pool.</Overview>
   <Category/>
-  <WebUI>http://mdf-facilitator-v2-syd:8080/health</WebUI>
+  <WebUI>http://mdf-facilitator-public:8080/health</WebUI>
   <TemplateURL/>
   <Icon>https://raw.githubusercontent.com/bitcryptic-gw/bitcryptic-blog/main/bc-icon.png</Icon>
   <ExtraParams>--restart=unless-stopped --user 0:0 --device=/dev/net/tun --cap-add=NET_ADMIN --entrypoint=/opt/unraid/tailscale</ExtraParams>
@@ -36,18 +36,18 @@
   <DateInstalled/>
   <DonateText/>
   <DonateLink/>
-  <Description>Self-hosted x402 v2 facilitator for MDF (exact on eip155:8453 and eip155:84532). Joins the tailnet as mdf-facilitator-v2-syd; no host port is published. The Unraid Tailscale hook starts as root, then the service drops to uid 1000 before reading the signer key.</Description>
+  <Description>Self-hosted x402 v2 facilitator for MDF (exact on eip155:8453 and eip155:84532). Joins the tailnet as mdf-facilitator-public; no host port is published. The Unraid Tailscale hook starts as root, then the service drops to uid 1000 before reading the signer key.</Description>
   <Networking>
     <Mode>bridge</Mode>
   </Networking>
   <Data>
     <Volume>
-      <HostDir>/mnt/cache/appdata/mdf-facilitator-v2-syd/secrets</HostDir>
+      <HostDir>/mnt/cache/appdata/mdf-facilitator-public/secrets</HostDir>
       <ContainerDir>/run/secrets</ContainerDir>
       <Mode>ro</Mode>
     </Volume>
     <Volume>
-      <HostDir>/mnt/cache/appdata/mdf-facilitator-v2-syd/data</HostDir>
+      <HostDir>/mnt/cache/appdata/mdf-facilitator-public/data</HostDir>
       <ContainerDir>/app/data</ContainerDir>
       <Mode>rw</Mode>
     </Volume>
@@ -104,7 +104,7 @@
       <Mode/>
     </Variable>
     <Variable>
-      <Value>mdf-facilitator-v2-syd</Value>
+      <Value>mdf-facilitator-public</Value>
       <Name>TAILSCALE_HOSTNAME</Name>
       <Mode/>
     </Variable>
