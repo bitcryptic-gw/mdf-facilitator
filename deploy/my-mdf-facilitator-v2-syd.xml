@@ -1,0 +1,83 @@
+<?xml version="1.0"?>
+<!--
+  MDF x402 v2 facilitator — syd leg (staging, blue/green).
+
+  NOT in the Caddy pool and NOT behind x402.bitcryptic.com. Reached on
+  http://unraid-syd:18080 over the tailnet for acceptance testing only.
+
+  Apply through the Unraid Docker UI (Docker tab -> Add Container -> Template),
+  not with `docker run`, so `my-mdf-facilitator-v2-syd.xml` is generated and
+  `net.unraid.docker.managed=dockerman` is set. Pinned by digest.
+-->
+<Container version="2">
+  <Name>mdf-facilitator-v2-syd</Name>
+  <Repository>bitcryptic/mdf-facilitator@sha256:e80f13616b9d20cd247abc0126d99508d187c57dde1e56988708123381c6ffe0</Repository>
+  <Registry>https://registry.hub.docker.com/</Registry>
+  <Network>bridge</Network>
+  <MyIP/>
+  <Shell>sh</Shell>
+  <Privileged>false</Privileged>
+  <Support/>
+  <Project>https://github.com/bitcryptic-gw/mdf</Project>
+  <Overview>MDF x402 v2 facilitator (staging leg, syd). Not in the production pool.</Overview>
+  <Category/>
+  <WebUI>http://[IP]:[PORT:8080]/health</WebUI>
+  <TemplateURL/>
+  <Icon>https://raw.githubusercontent.com/bitcryptic-gw/bitcryptic-blog/main/bc-icon.png</Icon>
+  <ExtraParams>--restart=unless-stopped</ExtraParams>
+  <PostArgs/>
+  <CPUset/>
+  <DateInstalled/>
+  <DonateText/>
+  <DonateLink/>
+  <Description>Self-hosted x402 v2 facilitator for MDF (exact on eip155:8453 and eip155:84532). Signer key is a bind-mounted file, mode 600, uid 1000. Staging leg: not in the Caddy pool.</Description>
+  <Networking>
+    <Mode>bridge</Mode>
+    <Publish>
+      <Port>
+        <HostPort>18080</HostPort>
+        <ContainerPort>8080</ContainerPort>
+        <Protocol>tcp</Protocol>
+      </Port>
+    </Publish>
+  </Networking>
+  <Data>
+    <Volume>
+      <HostDir>/mnt/cache/appdata/mdf-facilitator-v2-syd/secrets</HostDir>
+      <ContainerDir>/run/secrets</ContainerDir>
+      <Mode>ro</Mode>
+    </Volume>
+    <Volume>
+      <HostDir>/mnt/cache/appdata/mdf-facilitator-v2-syd/data</HostDir>
+      <ContainerDir>/app/data</ContainerDir>
+      <Mode>rw</Mode>
+    </Volume>
+  </Data>
+  <Environment>
+    <Variable>
+      <Value>8080</Value>
+      <Name>PORT</Name>
+      <Mode/>
+    </Variable>
+    <Variable>
+      <Value>https://mainnet.base.org</Value>
+      <Name>BASE_RPC_URL</Name>
+      <Mode/>
+    </Variable>
+    <Variable>
+      <Value>https://sepolia.base.org</Value>
+      <Name>BASE_SEPOLIA_RPC_URL</Name>
+      <Mode/>
+    </Variable>
+    <Variable>
+      <Value>500000000000000</Value>
+      <Name>GAS_THRESHOLD_WEI</Name>
+      <Mode/>
+    </Variable>
+    <Variable>
+      <Value>300000</Value>
+      <Name>BALANCE_POLL_MS</Name>
+      <Mode/>
+    </Variable>
+  </Environment>
+</Container>

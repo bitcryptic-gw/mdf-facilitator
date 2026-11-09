@@ -1,0 +1,33 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+
+  image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build image (no push)
+        run: docker build --platform linux/amd64 -t mdf-facilitator:ci .
+      - name: Refuse an image that contains a key-shaped string
+        run: |
+          if docker run --rm --entrypoint sh mdf-facilitator:ci \
+             -c 'grep -rIlE "0x[0-9a-fA-F]{64}" /app/src'; then
+            echo "::error::image contains a key-shaped literal"
+            exit 1
+          fi

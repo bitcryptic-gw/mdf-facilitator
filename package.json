@@ -1,0 +1,25 @@
+{
+  "name": "@bitcryptic/mdf-facilitator",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Self-hosted x402 v2 facilitator for MDF. Not a community app; MDF infrastructure.",
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "start": "node src/index.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "node --test tests/*.test.ts",
+    "gen-key": "node scripts/gen-key.mjs"
+  },
+  "dependencies": {
+    "@x402/core": "2.30.0",
+    "@x402/evm": "2.30.0",
+    "viem": "2.57.16"
+  },
+  "devDependencies": {
+    "@types/node": "24.10.1",
+    "typescript": "5.9.3"
+  }
+}

@@ -1,0 +1,9 @@
+.git
+.github
+tests
+deploy
+node_modules
+*.md
+!README.md
+scripts
+tsconfig.json
